@@ -5,23 +5,21 @@ import requests
 import food_detector
 import pygame
 
+from food_detector import detect_all_objects, detect_food_objects
+
 # Initialize pygame mixer for audio
 pygame.mixer.init()
 
 mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
-# Example: output from your colleague's detector
-# Simulating: bounding box and label from food detector
-# Replace this with actual output from your food_detector
-# food_box = (300, 200, 450, 350)   # xmin, ymin, xmax, ymax
-# food_label = "fries"  # e.g., "fries", "burger", "apple", "salad"
-# food_type = "bad"  # "good" or "bad" - from your food_detector
-
-
-# Define categories
-BAD_FOODS = ["fries", "burger", "pizza", "chips", "candy", "soda", "cake", "donut"]
-GOOD_FOODS = ["apple", "banana", "salad", "vegetables", "fruit", "water", "nuts"]
+# Initialize food items list and food boxes list
+# food_items: list of dicts with 'boundary', 'label', 'classification', 'confidence'
+# food_boxes: list of tuples (xmin, ymin, xmax, ymax) for quick access
+# Initialize with one box for demonstration
+initial_box = (300, 200, 450, 350)
+food_items = [{'boundary': initial_box, 'label': 'fries', 'classification': 'unhealthy', 'confidence': 0.0}]
+food_boxes = [initial_box]  # Initialize with one box (xmin, ymin, xmax, ymax)
 
 def is_pinch(hand_landmarks):
     # Thumb tip: 4, Index tip: 8
@@ -69,16 +67,32 @@ while True:
         break
     
     h, w, _ = img.shape
-
-    # Detect food in the current frame
-    food_box, food_label, food_type = food_detector.detect(img)
-
-    # Draw food bounding box with color based on food type
-    box_color = (0, 0, 255) if is_bad_food(food_label, food_type) else (0, 255, 0)
-    cv2.rectangle(img, (food_box[0], food_box[1]),
-                       (food_box[2], food_box[3]), box_color, 2)
-    cv2.putText(img, f"{food_label} ({food_type})", (food_box[0], food_box[1]-10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, box_color, 2)
+    
+    # Run food detection once per frame (filter unhealthy food only)
+    detections = detect_food_objects(img, filter_unhealthy_food_only=True)
+    
+    # Update food_items and food_boxes from detections
+    if detections:
+        # Update with new detections
+        food_items = detections
+        food_boxes = [item['boundary'] for item in food_items]
+    else:
+        # No detections found - keep last food_items and food_boxes values
+        if not food_items:
+            print("⚠️ No unhealthy food detected yet. Waiting for detection...")
+        else:
+            print("⚠️ No unhealthy food detected in current frame. Using last known food positions.")
+    
+    # Draw all food bounding boxes
+    for item in food_items:
+        x1, y1, x2, y2 = item['boundary']
+        label = item['label']
+        # Color: Red for unhealthy food
+        color = (0, 0, 255)  # Red
+        
+        cv2.rectangle(img, (x1, y1), (x2, y2), color, 2)
+        cv2.putText(img, label, (x1, y1 - 10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, color, 2)
 
     # Mediapipe processing
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -94,14 +108,14 @@ while True:
 
             cv2.circle(img, (px, py), 10, (255, 0, 0), -1)
 
-            # Check if finger is inside food box
-            if point_in_box(px, py, food_box):
-
-                # Detect a pinch/grab gesture
-                if is_pinch(handLms):
-                    # Only trigger warning if it's bad food
-                    if is_bad_food(food_label, food_type):
+            # Check if finger is inside any food box
+            for i, box in enumerate(food_boxes):
+                if point_in_box(px, py, box):
+                    # Detect a pinch/grab gesture
+                    if is_pinch(handLms):
+                        # Since we're filtering unhealthy food only, trigger warning for all collisions
                         trigger_warning()
+                        break  # Only trigger once per frame
 
     cv2.imshow("Food Grab Detector", img)
     if cv2.waitKey(1) == ord('q'):
