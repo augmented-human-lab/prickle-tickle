@@ -2,7 +2,6 @@ import cv2
 import mediapipe as mp
 import math
 import requests
-import food_detector
 import pygame
 
 # Initialize pygame mixer for audio
@@ -12,16 +11,9 @@ mp_hands = mp.solutions.hands
 mp_draw = mp.solutions.drawing_utils
 
 # Example: output from your colleague's detector
-# Simulating: bounding box and label from food detector
-# Replace this with actual output from your food_detector
-# food_box = (300, 200, 450, 350)   # xmin, ymin, xmax, ymax
-# food_label = "fries"  # e.g., "fries", "burger", "apple", "salad"
-# food_type = "bad"  # "good" or "bad" - from your food_detector
-
-
-# Define categories
-BAD_FOODS = ["fries", "burger", "pizza", "chips", "candy", "soda", "cake", "donut"]
-GOOD_FOODS = ["apple", "banana", "salad", "vegetables", "fruit", "water", "nuts"]
+# Simulating: bounding box of fries (unhealthy)
+food_box = (300, 200, 450, 350)   # xmin, ymin, xmax, ymax
+food_label = "fries"
 
 def is_pinch(hand_landmarks):
     # Thumb tip: 4, Index tip: 8
@@ -33,18 +25,6 @@ def is_pinch(hand_landmarks):
 def point_in_box(px, py, box):
     xmin, ymin, xmax, ymax = box
     return xmin <= px <= xmax and ymin <= py <= ymax
-
-def is_bad_food(label, food_type=None):
-    """
-    Determine if food is bad/unhealthy
-    Args:
-        label: food label from detector
-        food_type: optional explicit classification ("good" or "bad")
-    """
-    if food_type:
-        return food_type.lower() == "bad"
-    # Fallback to label-based classification
-    return label.lower() in BAD_FOODS
 
 def trigger_warning():
     print("⚠️ Unhealthy food grab detected!")
@@ -69,16 +49,12 @@ while True:
         break
     
     h, w, _ = img.shape
-
-    # Detect food in the current frame
-    food_box, food_label, food_type = food_detector.detect(img)
-
-    # Draw food bounding box with color based on food type
-    box_color = (0, 0, 255) if is_bad_food(food_label, food_type) else (0, 255, 0)
+    
+    # Draw food bounding box
     cv2.rectangle(img, (food_box[0], food_box[1]),
-                       (food_box[2], food_box[3]), box_color, 2)
-    cv2.putText(img, f"{food_label} ({food_type})", (food_box[0], food_box[1]-10),
-                cv2.FONT_HERSHEY_SIMPLEX, 0.8, box_color, 2)
+                       (food_box[2], food_box[3]), (0,255,0), 2)
+    cv2.putText(img, food_label, (food_box[0], food_box[1]-10),
+                cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0,255,0), 2)
 
     # Mediapipe processing
     img_rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
@@ -98,10 +74,8 @@ while True:
             if point_in_box(px, py, food_box):
 
                 # Detect a pinch/grab gesture
-                if is_pinch(handLms):
-                    # Only trigger warning if it's bad food
-                    if is_bad_food(food_label, food_type):
-                        trigger_warning()
+                if is_pinch(handLms) and food_label == "fries":
+                    trigger_warning()
 
     cv2.imshow("Food Grab Detector", img)
     if cv2.waitKey(1) == ord('q'):
