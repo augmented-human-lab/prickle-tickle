@@ -222,6 +222,51 @@ def detect_food_objects(image: Union[str, np.ndarray],
     return detections
 
 
+def detect(image: Union[str, np.ndarray], 
+           confidence_threshold: float = 0.5) -> Tuple[Tuple[int, int, int, int], str, str]:
+    """
+    Simple detection function that returns the first detected food item.
+    Returns default values if no food is detected.
+    
+    Args:
+        image: Image path (str) or numpy array (BGR format)
+        confidence_threshold: Minimum confidence score (0.0-1.0)
+    
+    Returns:
+        Tuple of (food_box, food_label, food_type):
+            - food_box: (xmin, ymin, xmax, ymax) bounding box coordinates
+            - food_label: Label of detected object
+            - food_type: 'good' or 'bad' classification
+    
+    Example:
+        >>> food_box, food_label, food_type = detect(img)
+    """
+    # Detect food objects in the image
+    detections = detect_food_objects(image, confidence_threshold=confidence_threshold, 
+                                     filter_food_only=False)
+    
+    # If food detected, return the first one
+    if detections:
+        detection = detections[0]
+        food_box = detection['boundary']
+        food_label = detection['label']
+        
+        # Map classification to 'good' or 'bad'
+        classification = detection['classification']
+        if classification == 'healthy':
+            food_type = 'good'
+        elif classification == 'unhealthy':
+            food_type = 'bad'
+        else:
+            food_type = 'unknown'
+        
+        return food_box, food_label, food_type
+    
+    # Return default values if nothing detected
+    # Using center of image as default box
+    return (0, 0, 100, 100), "none", "unknown"
+
+
 def detect_food(image_path=None, use_webcam=False):
     """
     Detect and classify food in an image or webcam feed
@@ -370,6 +415,9 @@ if __name__ == "__main__":
     if len(sys.argv) > 1:
         if sys.argv[1] == "--webcam" or sys.argv[1] == "-w":
             detect_food(use_webcam=True)
+    # Integration function for prickletickle.py
+    # Returns (food_box, food_label, food_type) for first detected food
+    # food_type is 'good' or 'bad'
         else:
             detect_food(image_path=sys.argv[1])
     else:
@@ -382,4 +430,21 @@ if __name__ == "__main__":
         print("  detections = detect_food_objects('image.jpg')")
         print("  for det in detections:")
         print("      print(f\"{det['label']} at {det['boundary']} - {det['classification']}\")")
+    def detect(img):
+        detections = detect_food_objects(img, confidence_threshold=0.5, filter_food_only=True)
+        if not detections:
+            # No food detected, return dummy values
+            return (0, 0, 0, 0), "unknown", "unknown"
+        det = detections[0]
+        food_box = det['boundary']
+        food_label = det['label']
+        classification = det['classification']
+        # Map to 'good'/'bad'
+        if classification == 'healthy':
+            food_type = 'good'
+        elif classification == 'unhealthy':
+            food_type = 'bad'
+        else:
+            food_type = 'unknown'
+        return food_box, food_label, food_type
 

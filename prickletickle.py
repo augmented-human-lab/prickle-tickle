@@ -2,6 +2,7 @@ import cv2
 import mediapipe as mp
 import math
 import requests
+import food_detector
 import pygame
 
 from food_detector import detect_all_objects, detect_food_objects
@@ -30,6 +31,18 @@ def is_pinch(hand_landmarks):
 def point_in_box(px, py, box):
     xmin, ymin, xmax, ymax = box
     return xmin <= px <= xmax and ymin <= py <= ymax
+
+def is_bad_food(label, food_type=None):
+    """
+    Determine if food is bad/unhealthy
+    Args:
+        label: food label from detector
+        food_type: optional explicit classification ("good" or "bad")
+    """
+    if food_type:
+        return food_type.lower() == "bad"
+    # Fallback to label-based classification
+    return label.lower() in BAD_FOODS
 
 def trigger_warning():
     print("⚠️ Unhealthy food grab detected!")
