@@ -69,14 +69,13 @@ def get_model():
     return _model
 
 
-def detect_food_objects(image: Union[str, np.ndarray], 
-                        confidence_threshold: float = 0.5,
-                        model: YOLO = None) -> List[Dict]:
+def detect_all_objects(image: Union[str, np.ndarray], 
+                       confidence_threshold: float = 0.5,
+                       model: YOLO = None) -> List[Dict]:
     """
-    Detect food objects in an image and return boundaries and labels.
-    
-    This is the main function for integration - returns detection results
-    that can be used by other scripts.
+    Detect ALL objects in an image and return boundaries and labels.
+    This is a general object detection function that returns all detected objects
+    without any food-specific classification.
     
     Args:
         image: Image path (str) or numpy array (BGR format)
@@ -88,12 +87,82 @@ def detect_food_objects(image: Union[str, np.ndarray],
             - 'boundary': Tuple of (x1, y1, x2, y2) bounding box coordinates
             - 'label': String label of detected object
             - 'confidence': Float confidence score (0.0-1.0)
+    
+    Example:
+        >>> detections = detect_all_objects('image.jpg')
+        >>> for det in detections:
+        ...     print(f"{det['label']} at {det['boundary']} with confidence {det['confidence']:.2f}")
+    """
+    # Load model if not provided
+    if model is None:
+        model = get_model()
+    
+    # Load image if path provided
+    if isinstance(image, str):
+        img = cv2.imread(image)
+        if img is None:
+            raise ValueError(f"Could not load image from {image}")
+    else:
+        img = image.copy()
+    
+    # Run detection
+    results = model(img, verbose=False)
+    
+    # Extract all detections
+    detections = []
+    
+    for result in results:
+        for box in result.boxes:
+            class_id = int(box.cls[0])
+            class_name = result.names[class_id]
+            confidence = float(box.conf[0])
+            
+            # Filter by confidence threshold
+            if confidence >= confidence_threshold:
+                # Get bounding box coordinates
+                x1, y1, x2, y2 = map(int, box.xyxy[0])
+                boundary = (x1, y1, x2, y2)
+                
+                detections.append({
+                    'boundary': boundary,
+                    'label': class_name,
+                    'confidence': confidence
+                })
+    
+    return detections
+
+
+def detect_food_objects(image: Union[str, np.ndarray], 
+                        confidence_threshold: float = 0.5,
+                        filter_food_only: bool = False,
+                        model: YOLO = None) -> List[Dict]:
+    """
+    Detect food objects in an image and return boundaries and labels with classification.
+    
+    This function detects objects and classifies them as healthy/unhealthy food.
+    By default, it returns all detected objects with their food classification
+    (non-food items will have classification='unknown').
+    
+    Args:
+        image: Image path (str) or numpy array (BGR format)
+        confidence_threshold: Minimum confidence score (0.0-1.0)
+        filter_food_only: If True, only return objects classified as food (healthy/unhealthy).
+                         If False, return all objects with classification info.
+        model: Optional YOLO model instance (if None, will load/create one)
+    
+    Returns:
+        List of dictionaries, each containing:
+            - 'boundary': Tuple of (x1, y1, x2, y2) bounding box coordinates
+            - 'label': String label of detected object
+            - 'confidence': Float confidence score (0.0-1.0)
             - 'classification': String 'healthy', 'unhealthy', or 'unknown'
     
     Example:
+        >>> # Get all objects with food classification
         >>> detections = detect_food_objects('food_image.jpg')
-        >>> for det in detections:
-        ...     print(f"{det['label']} at {det['boundary']} - {det['classification']}")
+        >>> 
+        >>> # Get only food items (filter out non-food)
+        >>> food_only = detect_food_objects('food_image.jpg', filter_food_only=True)
     """
     # Load model if not provided
     if model is None:
@@ -127,6 +196,10 @@ def detect_food_objects(image: Union[str, np.ndarray],
                 
                 # Classify food
                 classification = classify_food(class_name)
+                
+                # Filter out non-food items if requested
+                if filter_food_only and classification == 'unknown':
+                    continue
                 
                 detections.append({
                     'boundary': boundary,
