@@ -28,13 +28,16 @@ FOOD_CLASSIFICATION = {
     'orange': 'healthy',
     'broccoli': 'healthy',
     'carrot': 'healthy',
-    'sandwich': 'healthy',  # Can be healthy depending on ingredients
+    'sandwich': 'healthy', 
     
     # Unhealthy
     'pizza': 'unhealthy',
     'hot dog': 'unhealthy',
     'donut': 'unhealthy',
     'cake': 'unhealthy',
+    'sandwich': 'unhealthy', 
+    'laptop': 'unhealthy',  # Non-food item for testing
+    'cup': 'unhealthy'  # Non-food item for testing
 }
 
 
