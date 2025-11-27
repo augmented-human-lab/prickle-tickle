@@ -137,6 +137,7 @@ def detect_all_objects(image: Union[str, np.ndarray],
 def detect_food_objects(image: Union[str, np.ndarray], 
                         confidence_threshold: float = 0.5,
                         filter_food_only: bool = False,
+                        filter_healthy_food_only: bool = False,
                         filter_unhealthy_food_only: bool = False,
                         model: YOLO = None) -> List[Dict]:
     """
@@ -208,6 +209,10 @@ def detect_food_objects(image: Union[str, np.ndarray],
                 # Filter unhealthy food only (highest priority)
                 if filter_unhealthy_food_only:
                     if classification != 'unhealthy':
+                        continue
+                # Filter healthy food only (second priority)
+                elif filter_healthy_food_only:
+                    if classification != 'healthy':
                         continue
                 # Filter out non-food items if requested
                 elif filter_food_only and classification == 'unknown':
