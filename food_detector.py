@@ -17,7 +17,7 @@ HEALTHY_FOODS = {
 }
 
 UNHEALTHY_FOODS = {
-    'pizza', 'hot dog', 'donut', 'cake'
+    'pizza', 'hot dog', 'donut', 'cake', 'bottle'
 }
 
 # Extended mapping for common food items (you can expand this)
@@ -35,6 +35,7 @@ FOOD_CLASSIFICATION = {
     'hot dog': 'unhealthy',
     'donut': 'unhealthy',
     'cake': 'unhealthy',
+    'bottle': 'unhealthy',
 }
 
 
@@ -135,6 +136,7 @@ def detect_all_objects(image: Union[str, np.ndarray],
 def detect_food_objects(image: Union[str, np.ndarray], 
                         confidence_threshold: float = 0.5,
                         filter_food_only: bool = False,
+                        filter_unhealthy_food_only: bool = False,
                         model: YOLO = None) -> List[Dict]:
     """
     Detect food objects in an image and return boundaries and labels with classification.
@@ -148,6 +150,8 @@ def detect_food_objects(image: Union[str, np.ndarray],
         confidence_threshold: Minimum confidence score (0.0-1.0)
         filter_food_only: If True, only return objects classified as food (healthy/unhealthy).
                          If False, return all objects with classification info.
+        filter_unhealthy_food_only: If True, only return unhealthy food items (pizza, hot dog, 
+                                   donut, cake, bottle). Overrides filter_food_only if True.
         model: Optional YOLO model instance (if None, will load/create one)
     
     Returns:
@@ -163,6 +167,9 @@ def detect_food_objects(image: Union[str, np.ndarray],
         >>> 
         >>> # Get only food items (filter out non-food)
         >>> food_only = detect_food_objects('food_image.jpg', filter_food_only=True)
+        >>> 
+        >>> # Get only unhealthy food items
+        >>> unhealthy_only = detect_food_objects('food_image.jpg', filter_unhealthy_food_only=True)
     """
     # Load model if not provided
     if model is None:
@@ -197,8 +204,12 @@ def detect_food_objects(image: Union[str, np.ndarray],
                 # Classify food
                 classification = classify_food(class_name)
                 
+                # Filter unhealthy food only (highest priority)
+                if filter_unhealthy_food_only:
+                    if classification != 'unhealthy':
+                        continue
                 # Filter out non-food items if requested
-                if filter_food_only and classification == 'unknown':
+                elif filter_food_only and classification == 'unknown':
                     continue
                 
                 detections.append({
