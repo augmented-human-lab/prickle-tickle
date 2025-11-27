@@ -35,7 +35,6 @@ FOOD_CLASSIFICATION = {
     'hot dog': 'unhealthy',
     'donut': 'unhealthy',
     'cake': 'unhealthy',
-    'sandwich': 'unhealthy', 
     'laptop': 'unhealthy',  # Non-food item for testing
     'cup': 'unhealthy'  # Non-food item for testing
 }
